@@ -6,7 +6,7 @@ from linkedlist import CLinkedList
 from kivy.app import App
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle, Quad
-from kivy.properties import ObjectProperty, ListProperty
+from kivy.properties import ObjectProperty, ListProperty, DictProperty
 from kivy.uix.widget import Widget
 from kivy.uix.button import Button
 from kivy.uix.behaviors import DragBehavior
@@ -40,10 +40,16 @@ def point_inside_polygon(x, y, poly):
                         inside = not inside
         p1x, p1y = p2x, p2y
     return inside
+def contains_widget(container, item):
+    inside = True
+    for i in range(len(item.area.points) //2):
+        ptX = item.area.points[i*2]
+        ptY = item.area.points[i*2+1]
+        if not(container.collide_point(ptX,ptY)):
+            inside = False
+    return inside
 
 
-
-studio_state = {}
 
 class Furniture(DragBehavior,Widget):
     pictures = ObjectProperty(None)
@@ -51,24 +57,24 @@ class Furniture(DragBehavior,Widget):
     filterColor = ListProperty([0, 0,0,0])
     area = ObjectProperty(None)
     ground = ListProperty([0, 0, 0, 0, 0, 0, 0, 0])
-    def __init__(self, toy, pos, **kwargs):
+    #furniture: id, width, height, image1, image2, [image3], [image4], type
+    def __init__(self, furniture, pos=[0,0], **kwargs):
         super().__init__(**kwargs)
 
-        self.id = toy[0]
-        self.size = (int(toy[1]),int(toy[2]))
         self.pos = pos
-        self.drag_rectangle = (self.x, self.y, int(toy[1]),int(toy[2]))
+        self.id=furniture[0]
+        self.size = (int(furniture[1]),int(furniture[2]))
+        self.drag_rectangle = (self.x, self.y, self.width, self.height)
 
         img = self.canvas.children[1]
-        img.source = "img/"+toy[3]
-        img.size = (int(toy[1]),int(toy[2]))
+        img.source = "img/"+furniture[3]
+        img.size = (self.width, self.height)
         self.pictures = CLinkedList()
         for i in range(3,7):
-            if toy[i] != "":
-                self.pictures.append(toy[i])
+            if furniture[i] != "":
+                self.pictures.append(furniture[i])
 
         self.area = self.canvas.get_group('filter')[1]
-        #print(self.area.points)
 
     def on_touch_down(self, touch):
         if touch.button == 'right':
@@ -76,24 +82,11 @@ class Furniture(DragBehavior,Widget):
                 self.canvas.children[1].source = "img/"+self.pictures.next().val
                 return True
         if touch.button == 'left':
-            #bring to front
             parent = self.parent
-            parent.remove_widget(self)
-            parent.add_widget(self)
+            # parent.remove_widget(self)
+            # parent.add_widget(self)
+        return super().on_touch_down(touch)
 
-        return super(Furniture, self).on_touch_down(touch)
-
-    def on_touch_move(self, touch):
-        if self.parent.floor.contains_widget(self):#self.parent.floor.collide_point(touch.x,touch.y):
-            self.filterColor = 1,0,0,0.5
-        else:
-            self.filterColor = 0,0,1,0.5
-        return super(Furniture,self).on_touch_move(touch)
-
-    def on_touch_up(self, touch):
-        if self.collide_point(*touch.pos):
-            studio_state[self.id] = [self.x, self.y]
-        return super(Furniture, self).on_touch_up(touch)
 
 class Floor(Widget):
     p1 = ListProperty([0, 0])
@@ -101,30 +94,18 @@ class Floor(Widget):
     p3 = ListProperty([0, 0])
     p4 = ListProperty([0, 0])
     area = ObjectProperty(None)
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.center_x = Window.width//2
         self.center_y = Window.height//2
+
     def setup(self):
         self.area = self.canvas.get_group('a')[0]
-
-    def on_touch_down(self, touch):
-        return super(Floor, self).on_touch_down(touch)
-
-    def contains_widget(self, item):
-        inside = True
-
-        for i in range(len(item.area.points) //2):
-            ptX = item.area.points[i*2]
-            ptY = item.area.points[i*2+1]
-            if not(self.collide_point(ptX,ptY)):
-                inside = False
-        return inside
 
     def collide_point(self, x, y):
         x, y = self.to_local(x, y)
         return point_inside_polygon(x, y, self.area.points)
-
 
 class Wall(Widget):
     def __init__(self, **kwargs):
@@ -133,33 +114,83 @@ class Wall(Widget):
         self.center_y = Window.height//2
     pass
 
+
 class Studio(Widget):
+    furniture = ListProperty([])
+    placements = {}
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
-        with open("furniture.csv") as file_name:
-            read_csv = csv.reader(file_name)
-            toys = list(read_csv)
-        #Floor()
-        global studio_state
-        if exists("studio_state.pkl"):
-            with open("studio_state.pkl", "rb") as f:
-                studio_state = pickle.load(f)
+
+        with open("furniture.csv") as file:
+            read_csv = csv.reader(file)
+            existingfurniture ={}
+            for row in list(read_csv):
+                existingfurniture[row[0]] = row
+
+        if exists("placed_state.pkl"):
+            with open("placed_state.pkl", "rb") as file:
+                self.placements = pickle.load(file)
         else:
-            studio_state = {}
-        i=1
-        for t in toys:
-            toypos = studio_state[t[0]] if t[0] in studio_state else [0,0]
-            f = Furniture(t, toypos)#, positions[t[0]])
-            self.add_widget(f)
-            i+=1
+            self.placements = {}
+        print(self.placements)
+        for fpos in self.placements:
+            print(fpos)
+            info = existingfurniture
+            newf = Furniture(existingfurniture[fpos], pos=self.placements[fpos])
+            #studio_state[self.id] = [self.x, self.y]
+            self.furniture.append(newf)
+            self.add_widget(newf)
+
+        #Testing only! remember to cut when store/inventory work
+        # for ff in existingfurniture:
+        #     newf=Furniture(ff)
+        #     self.furniture.append(newf)
+        #     self.add_widget(newf)
+
+        # for t in toys:
+        #     if t[0] in studio_state:
+        #         f = Furniture(t, studio_state[t[0]])#, positions[t[0]])
+        #         #self.placed_furniture.add_widget(placed_furniture)
+        #         self.add_widget(f)
+        #         self.furniture.add(f)
+        #
+        #     else:
+        #         f = Furniture(t, [0,0])
+        #         self.furniture.add(f)
+        #
+        #         #self.owned.add_widget(f)
+        #         pass
+        #     i+=1
 
         btn = Button(text="Save", pos = (100,0))
-        btn.bind(on_press=self.doThings)
+        btn.bind(on_press=self.savePos)
         self.add_widget(btn)
         self.floor.setup()
         #self.wall.setup()
-    def doThings(self, evt):
+    def savePos(self, evt):
         # save state to file
-        print(studio_state)
-        with open("studio_state.pkl", "wb") as f:
-            pickle.dump(studio_state, f)
+        for ff in self.furniture:
+            if ff.pos !=[0,0]:
+                self.placements[ff.id] = [ff.x, ff.y]
+
+        with open("placed_state.pkl", "wb") as f:
+            pickle.dump(self.placements, f)
+
+
+    def on_touch_move(self, touch):
+
+        for furniture in self.furniture:
+            if contains_widget(self.floor, furniture):
+                furniture.filterColor = 1,0,0,0.5
+            else:
+                furniture.filterColor = 0,0,1,0.5
+        return super().on_touch_move(touch)
+
+    def on_touch_up(self, touch):
+
+        for furniture in self.furniture:
+            if furniture.collide_point(*touch.pos):
+                #print(furniture.x)
+                pass
+
+        return super().on_touch_up(touch)

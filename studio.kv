@@ -1,7 +1,18 @@
 <Studio>:
     btn_battle: battle
     floor: floor_elem
-    #wall: wall_elem
+    #owned: scroll_owned
+    # ScrollView:
+    #     id: scroll_owned
+    #     size_hint_y: 0.25
+    #     pos_hint: {'top':0}
+    #     do_scroll_x: True
+    #     GridLayout:
+    #         id: children
+    #         size: (root.width, 100)
+    #         size_hint_y: None
+    #         Image:
+    #             source: "img/Colors.png"
     Button:
         id: battle
         size_hint: 50,50
@@ -9,11 +20,7 @@
         text: "Play game"
         on_release:
             app.root.current = "battle"
-    Label:
-        font_size: 40
-        center_x: root.width / 4
-        top: root.top - 50
-        text: "Playtime"
+
     Floor:
         id: floor_elem
     Wall:

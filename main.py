@@ -20,6 +20,7 @@ from kivy.config import Config
 from kivy.core.window import Window
 from kivy.lang import Builder
 from kivy.properties import ObjectProperty
+from kivy.uix.gridlayout import GridLayout
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.widget import Widget
 
@@ -27,9 +28,7 @@ Builder.load_file('battle.kv')
 Builder.load_file('studio.kv')
 
 Config.set('input', 'mouse', 'mouse,multitouch_on_demand')
-Config.set('graphics', 'width', '1920')
-Config.set('graphics', 'height', '1080')
-
+Window.size = 720, 880 #640,360
 
 class HearthView(Screen):
     studio = ObjectProperty(None)
@@ -53,13 +52,16 @@ class PlayView(Screen):
         super().on_enter()
         self.game.start()
 
-class GameManager(ScreenManager):
+class GameManager(ScreenManager, GridLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.size = Window.size
+        self.cols = 3
+        print(self.size)
+        
     def next_level_game(self):
         self.get_screen("battle").game.start()
-    pass
+
 
 class CrafterApp(App):
     pass
