@@ -32,8 +32,9 @@ from kivy.uix.popup import Popup
 #   player has the ability to use a bomb?
 #   add object drop for enemies: vanish in ~5 seconds, and 5 seconds available after last enemy dies?
 #   -- continue/quit,
-#   --default to continue
-#  -- move health to "door" instead of player?
+#   default to continue
+#   -- move health to "door" instead of player?
+#   bounce enemies off player
 #   https://github.com/kivy-garden/garden.joystick for mobile (wasd for desktop)
 #   Make movement account for framerate
 

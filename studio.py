@@ -7,9 +7,11 @@ from kivy.app import App
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle, Quad
 from kivy.properties import ObjectProperty, ListProperty, DictProperty
-from kivy.uix.widget import Widget
 from kivy.uix.button import Button
 from kivy.uix.behaviors import DragBehavior
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.widget import Widget
+
 #   --get detection (basic contact) to work with floor
 #   --make filter a quad representing ground surface
 #   find a way to define "ground" quad from code
@@ -51,41 +53,48 @@ def contains_widget(container, item):
 
 
 
-class Furniture(DragBehavior,Widget):
+class Furniture(Widget):
     pictures = ObjectProperty(None)
     img = ObjectProperty(None)
-    filterColor = ListProperty([0, 0,0,0])
-    area = ObjectProperty(None)
-    ground = ListProperty([0, 0, 0, 0, 0, 0, 0, 0])
-    #furniture: id, width, height, image1, image2, [image3], [image4], type
-    def __init__(self, furniture, pos=[0,0], **kwargs):
+    ground = ListProperty([0,0,0,0,0,0,0,0])
+    def __init__(self, furniture, **kwargs):
         super().__init__(**kwargs)
-
-        self.pos = pos
         self.id=furniture[0]
         self.size = (int(furniture[1]),int(furniture[2]))
-        self.drag_rectangle = (self.x, self.y, self.width, self.height)
-
         img = self.canvas.children[1]
         img.source = "img/"+furniture[3]
         img.size = (self.width, self.height)
+
+class PlacedFurniture(DragBehavior, Furniture):
+    filterColor = ListProperty([0,0, 0,0])
+    area = ObjectProperty(None)
+    #furniture: id, width, height, image1, image2, [image3], [image4], type
+    def __init__(self, furniture, pos=[0,0], **kwargs):
+        super().__init__(furniture=furniture, **kwargs)
+        if(pos != [0,0]):
+            self.pos = pos
+
+        self.drag_timeout = 100000
+        drag_distance = 0
+        self.drag_rectangle = (self.x, self.y, self.width, self.height)
+
         self.pictures = CLinkedList()
         for i in range(3,7):
             if furniture[i] != "":
                 self.pictures.append(furniture[i])
-
         self.area = self.canvas.get_group('filter')[1]
 
     def on_touch_down(self, touch):
-        if touch.button == 'right':
-            if self.collide_point(*touch.pos):
-                self.canvas.children[1].source = "img/"+self.pictures.next().val
-                return True
-        if touch.button == 'left':
-            parent = self.parent
-            # parent.remove_widget(self)
-            # parent.add_widget(self)
+        if self.collide_point(*touch.pos):
+            if touch.button == 'right':
+                    self.canvas.children[1].source = "img/"+self.pictures.next().val
+                    return True
         return super().on_touch_down(touch)
+
+class StoredFurniture(Furniture):
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            print(self.id)
 
 
 class Floor(Widget):
@@ -120,7 +129,6 @@ class Studio(Widget):
     placements = {}
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
-
         with open("furniture.csv") as file:
             read_csv = csv.reader(file)
             existingfurniture ={}
@@ -132,65 +140,43 @@ class Studio(Widget):
                 self.placements = pickle.load(file)
         else:
             self.placements = {}
-        print(self.placements)
-        for fpos in self.placements:
-            print(fpos)
-            info = existingfurniture
-            newf = Furniture(existingfurniture[fpos], pos=self.placements[fpos])
-            #studio_state[self.id] = [self.x, self.y]
-            self.furniture.append(newf)
-            self.add_widget(newf)
+
+        #TODO: swap existingfurniture for "owned" object
+        for fid in existingfurniture:
+            if fid in self.placements:
+                self.addFurniture(existingfurniture[fid], self.placements[fid])
+            else:
+                newf = StoredFurniture(existingfurniture[fid])
+                self.owned.inventory.add_widget(newf)
 
         #Testing only! remember to cut when store/inventory work
         # for ff in existingfurniture:
-        #     newf=Furniture(ff)
+        #     newf=Furniture(existingfurniture[ff])
         #     self.furniture.append(newf)
         #     self.add_widget(newf)
 
-        # for t in toys:
-        #     if t[0] in studio_state:
-        #         f = Furniture(t, studio_state[t[0]])#, positions[t[0]])
-        #         #self.placed_furniture.add_widget(placed_furniture)
-        #         self.add_widget(f)
-        #         self.furniture.add(f)
-        #
-        #     else:
-        #         f = Furniture(t, [0,0])
-        #         self.furniture.add(f)
-        #
-        #         #self.owned.add_widget(f)
-        #         pass
-        #     i+=1
-
-        btn = Button(text="Save", pos = (100,0))
-        btn.bind(on_press=self.savePos)
-        self.add_widget(btn)
         self.floor.setup()
         #self.wall.setup()
-    def savePos(self, evt):
+    def addFurniture(self, furniture, pos=[0,0]):
+        if pos==[0,0]:
+            pos= [self.center_x, self.center_y]
+        newf = PlacedFurniture(furniture, pos=pos)
+        self.furniture.append(newf)
+        self.add_widget(newf)
+    def savePos(self):
         # save state to file
         for ff in self.furniture:
             if ff.pos !=[0,0]:
                 self.placements[ff.id] = [ff.x, ff.y]
-
         with open("placed_state.pkl", "wb") as f:
             pickle.dump(self.placements, f)
-
-
+        print("Saved")
+    #on touch down:
+        # if touch on inventoryFurniture: new PlacedFurniture(a)
     def on_touch_move(self, touch):
-
         for furniture in self.furniture:
             if contains_widget(self.floor, furniture):
                 furniture.filterColor = 1,0,0,0.5
             else:
                 furniture.filterColor = 0,0,1,0.5
         return super().on_touch_move(touch)
-
-    def on_touch_up(self, touch):
-
-        for furniture in self.furniture:
-            if furniture.collide_point(*touch.pos):
-                #print(furniture.x)
-                pass
-
-        return super().on_touch_up(touch)

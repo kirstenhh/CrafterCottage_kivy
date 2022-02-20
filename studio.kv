@@ -1,25 +1,38 @@
 <Studio>:
     btn_battle: battle
     floor: floor_elem
-    #owned: scroll_owned
-    # ScrollView:
-    #     id: scroll_owned
-    #     size_hint_y: 0.25
-    #     pos_hint: {'top':0}
-    #     do_scroll_x: True
-    #     GridLayout:
-    #         id: children
-    #         size: (root.width, 100)
-    #         size_hint_y: None
-    #         Image:
-    #             source: "img/Colors.png"
+    owned: scroll_owned
+    ScrollView:
+        id: scroll_owned
+        inventory: inventory_grid
+        size: root.width, 150
+        pos: 0,root.height - 150
+        do_scroll_x: True
+        do_scroll_y: False
+        GridLayout:
+            id: inventory_grid
+            rows: 1
+            size_hint: (1, 1)
+            canvas:
+                Color:
+                    rgb: (0.5,0.5,0.5)
+                Rectangle:
+                    size: self.width, self.height
+
     Button:
         id: battle
-        size_hint: 50,50
-        pos: 700,500
+        size: 50,30
+        pos: 10,10
         text: "Play game"
         on_release:
             app.root.current = "battle"
+    Button:
+        id: savebtn
+        size: 50,30
+        pos: 70, 10
+        text: "Save"
+        on_release:
+            self.parent.savePos()
 
     Floor:
         id: floor_elem
@@ -57,12 +70,9 @@
 
 
 <Furniture>:
-    drag_timeout: 100000
-    drag_distance: 0
-    drag_rectangle: self.x, self.y, self.width, self.height
     size_hint: None, None
     filterColor: 0,0,0,0
-    ground: self.x,self.y,  self.x+self.width-(self.width//4),self.y,  self.x+self.width,self.y+(self.width//2), self.x+(self.width//4),self.y+(self.width//2)
+    ground: self.x,self.y,  self.x+2*self.width//3,self.y, self.x+self.width,self.y+self.width//3, self.x+self.width//3,self.y+self.width//3
     canvas:
         Rectangle:
             pos:self.pos
